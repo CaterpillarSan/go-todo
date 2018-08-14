@@ -54,7 +54,7 @@ func (s *Server) Run(addr string) {
 	log.Printf("start listening on %s", addr)
 	// NOTE: when you serve on TLS, make csrf.Secure(true)
 	CSRF := csrf.Protect(
-		csrfProtectKey, csrf.Secure(false))
+		csrfProtectKey, csrf.Secure(true))
 	http.ListenAndServe(addr, context.ClearHandler(CSRF(s.router)))
 }
 
@@ -73,14 +73,17 @@ func (s *Server) Route() *mux.Router {
 	}).Methods("GET")
 
 	todo := &controller.Todo{DB: s.dbx}
+	search := &controller.Search{DB: s.dbx}
 
 	// TODO ng?
 	router.Handle("/api/todos", handler(todo.Get)).Methods("GET")
 	router.Handle("/api/todos", handler(todo.Put)).Methods("PUT")
 	router.Handle("/api/todos", handler(todo.Post)).Methods("POST")
 	router.Handle("/api/todos", handler(todo.Delete)).Methods("DELETE")
+	router.Handle("/api/todos/all", handler(todo.GetAll)).Methods("GET")
 	router.Handle("/api/todos/toggle", handler(todo.Toggle)).Methods("PUT")
-	// router.Handle("/api/users", handler(todo.Users)).Methods("GET")
+	router.Handle("/api/todos/update", handler(todo.Update)).Methods("PUT")
+	router.Handle("/api/search", handler(search.Get)).Methods("GET")
 
 	// TODO return index.html
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

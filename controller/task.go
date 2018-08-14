@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/voyagegroup/go-todo/model"
@@ -16,6 +17,14 @@ type Todo struct {
 
 // GetはDBからユーザを取得して結果を返します
 func (t *Todo) Get(w http.ResponseWriter, r *http.Request) error {
+	todos, err := model.Todos(t.DB)
+	if err != nil {
+		return err
+	}
+	return JSON(w, 200, todos)
+}
+
+func (t *Todo) GetAll(w http.ResponseWriter, r *http.Request) error {
 	todos, err := model.TodosAll(t.DB)
 	if err != nil {
 		return err
@@ -71,6 +80,29 @@ func (t *Todo) Post(w http.ResponseWriter, r *http.Request) error {
 	return JSON(w, http.StatusCreated, todo)
 }
 
+func (t *Todo) Update(w http.ResponseWriter, r *http.Request) error {
+	var todo model.Todo
+	if err := json.NewDecoder(r.Body).Decode(&todo); err != nil {
+		return err
+	}
+
+	if err := TXHandler(t.DB, func(tx *sqlx.Tx) error {
+		result, err := todo.Update(tx)
+		if err != nil {
+			return err
+		}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		todo.ID, err = result.LastInsertId()
+		return err
+	}); err != nil {
+		return err
+	}
+
+	return JSON(w, http.StatusCreated, todo)
+}
+
 func (t *Todo) Delete(w http.ResponseWriter, r *http.Request) error {
 	var todo model.Todo
 	if err := json.NewDecoder(r.Body).Decode(&todo); err != nil {
@@ -106,6 +138,27 @@ func (t *Todo) Toggle(w http.ResponseWriter, r *http.Request) error {
 		}
 		todo.ID, err = result.LastInsertId()
 		return err
+	}); err != nil {
+		return err
+	}
+
+	return JSON(w, http.StatusOK, todo)
+}
+
+// チェックのついたtodoを削除
+func (t *Todo) DeleteAll(w http.ResponseWriter, r *http.Request) error {
+	fmt.Println("deleteall")
+	var todo model.Todo
+	if err := json.NewDecoder(r.Body).Decode(&todo); err != nil {
+		return err
+	}
+
+	if err := TXHandler(t.DB, func(tx *sqlx.Tx) error {
+		_, err := todo.DeleteAll(tx)
+		if err != nil {
+			return err
+		}
+		return tx.Commit()
 	}); err != nil {
 		return err
 	}
